@@ -9,16 +9,16 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 def extract_text_from_pdf(pdf_file):
     pdf_reader = PyPDF2.PdfReader(pdf_file)
     text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text()
+    for page in range(len(pdf_reader.pages)):
+        text += f"[第{page+1}頁] " + pdf_reader.pages[page].extract_text() + " "
     return text
 
 def get_openai_response(prompt, context):
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "你是一個有幫助的助手。請使用以下上下文來回答用戶的問題。"},
+                {"role": "system", "content": "你是一個有幫助的助手。請使用以下上下文來回答用戶的問題。請使用繁體中文回答，並在回答中標註資訊的出處（例如：[第X頁]）。"},
                 {"role": "user", "content": f"上下文: {context}\n\n任務: {prompt}"}
             ]
         )
@@ -28,11 +28,11 @@ def get_openai_response(prompt, context):
         return None
 
 def summarize_text(text):
-    prompt = f"請用約100字簡要概括以下文本的內容：\n\n{text[:4000]}"
+    prompt = f"請用繁體中文，約100字簡要概括以下文本的內容。請在摘要中標註關鍵資訊的出處（例如：[第X頁]）：\n\n{text[:4000]}"
     return get_openai_response(prompt, "")
 
 def generate_questions(text):
-    prompt = "根據給定的文本，生成3到5個相關的問題。請以編號列表的形式提供這些問題。"
+    prompt = "根據給定的文本，用繁體中文生成3到5個相關的問題。請以編號列表的形式提供這些問題，並在每個問題後標註相關資訊可能的出處（例如：[第X頁]）。"
     return get_openai_response(prompt, text[:4000])
 
 @st.cache_data
@@ -42,7 +42,7 @@ def process_pdf(pdf_file):
     questions = generate_questions(text)
     return text, summary, questions
 
-st.title("PDF 智能問答系統")
+st.title("PDF 智能問答系統（含出處標示）")
 
 uploaded_file = st.file_uploader("請選擇一個PDF檔案", type="pdf")
 
@@ -65,7 +65,7 @@ if uploaded_file is not None:
 
     if user_question and user_question != "我想問自己的問題":
         with st.spinner("正在生成答案..."):
-            answer = get_openai_response(user_question, pdf_content)
+            answer = get_openai_response(f"請用繁體中文回答以下問題，並在回答中標註資訊的出處（例如：[第X頁]）：{user_question}", pdf_content)
         if answer:
             st.subheader("答案：")
             st.write(answer)
